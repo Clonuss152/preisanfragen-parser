@@ -22,31 +22,17 @@ class EmailData:
 
 
 @dataclass(slots=True)
-class ModelUsage:
-    model: str
-    input_tokens: int
-    output_tokens: int
-    estimated_cost_usd: float
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass(slots=True)
 class ParseResult:
     category: str
     confidence: float
-    needs_fallback: bool
-    attachment_relevant: bool
+    route: str
     shipments: list[dict[str, Any]]
     missing_fields: list[str]
     ambiguities: list[str]
-    model_used: str
-    fallback_used: bool = False
-    route: str | None = None
-    usage: list[ModelUsage] = field(default_factory=list)
+    attachment_relevant: bool
+    matched_rules: list[str]
+    scores: dict[str, int]
+    engine: str = "rule-based-v2"
 
     def to_dict(self) -> dict[str, Any]:
-        data = asdict(self)
-        data["usage"] = [item.to_dict() for item in self.usage]
-        return data
+        return asdict(self)

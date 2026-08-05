@@ -23,8 +23,5 @@ def identify_company(sender_domain: str | None, customers: dict[str, str]) -> st
     domain = sender_domain.lower()
     if domain in customers:
         return customers[domain]
-    # Allows subdomains such as logistics.customer.com.
     matches = [(known, company) for known, company in customers.items() if domain.endswith("." + known)]
-    if not matches:
-        return None
-    return max(matches, key=lambda item: len(item[0]))[1]
+    return max(matches, key=lambda item: len(item[0]))[1] if matches else None

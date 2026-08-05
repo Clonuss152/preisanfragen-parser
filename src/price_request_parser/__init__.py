@@ -1,1 +1,1 @@
-"""Freight price-request email parser prototype."""
+"""Rule-based freight price-request parser, version 2.0."""

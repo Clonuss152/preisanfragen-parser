@@ -1,23 +1,15 @@
 {
-  "models": {
-    "primary": "gpt-5-nano",
-    "fallback": "gpt-5-mini"
-  },
-  "confidence_threshold": 0.80,
   "required_shipment_fields": [
     "pickup_location",
     "delivery_location",
     "pickup_date"
   ],
-  "max_body_chars_primary": 12000,
-  "max_body_chars_fallback": 50000,
-  "move_originals": false,
-  "save_cleaned_text": true,
-  "input_dir": "input",
-  "output_dir": "output",
   "customers_file": "customers.csv",
-  "pricing_usd_per_million_tokens": {
-    "gpt-5-nano": {"input": 0.05, "output": 0.40},
-    "gpt-5-mini": {"input": 0.25, "output": 2.00}
+  "max_body_chars": 30000,
+  "classification_thresholds": {
+    "price_request": 4,
+    "booking": 4,
+    "status_update": 4,
+    "unclear_margin": 1
   }
 }
