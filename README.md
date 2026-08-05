@@ -1,36 +1,25 @@
-# Preisanfragen-Parser 2.0
+# Preisanfragen-Parser 2.1
 
-Browser-Prototyp zur regelbasierten Erkennung und Extraktion von Transport-Preisanfragen.
+Kostenloser, regelbasierter Streamlit-Prototyp ohne API und ohne externe KI-Verarbeitung.
 
-## Eigenschaften
+## Neuerungen in 2.1
 
-- keine OpenAI-API
-- kein API-Key
-- keine Tokenkosten
-- Upload von `.eml` und `.txt`
-- Signatur- und Verlaufstrennung
-- Kundenidentifikation über Domain
-- transparente Klassifikationsregeln
-- JSON- und ZIP-Export
+- deutsche und englische Preisanfragen
+- typische Formulierungen wie `RFQ`, `request for quotation`, `please quote`, `best rate`
+- gewichtetes Scoring statt einfacher Ja/Nein-Suche
+- Gegenregeln gegen Fehlklassifikationen, z. B. `price remains unchanged`
+- verständliche Ergebnisansicht mit deutschen Bezeichnungen
+- technische Details und JSON bleiben verfügbar
+- englische Beispielmail unter `samples/price_request_english.eml`
 
-## Deployment auf Streamlit Community Cloud
+## Deployment
 
-1. Alle Dateien dieses Ordners in das GitHub-Repository hochladen.
-2. In Streamlit als Main file `streamlit_app.py` auswählen.
-3. Python-Version `3.12` einstellen.
-4. Deploy/Reboot ausführen.
+- Main file: `streamlit_app.py`
+- Python: 3.12
+- keine Secrets erforderlich
+- Abhängigkeit: `streamlit==1.45.1`
 
-Es werden keine Secrets benötigt.
+## Unterstützte Dateien
 
-## Kundenliste
-
-`customers.csv`:
-
-```csv
-domain,company
-kunde.de,Musterkunde GmbH
-```
-
-## Wichtig
-
-Version 2.0 ist ein technischer und fachlicher Regel-Prototyp. Die Regeln können anhand echter E-Mails erweitert werden. Sie ersetzt noch keine produktive Qualitätssicherung.
+- `.eml`
+- `.txt`

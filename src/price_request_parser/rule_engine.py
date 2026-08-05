@@ -6,42 +6,55 @@ from typing import Any
 
 from .models import EmailData, ParseResult
 
-
+# Strong request phrases receive most points. Generic transport facts only support a decision.
 PRICE_RULES: list[tuple[str, re.Pattern[str], int]] = [
-    ("preis_anfrage", re.compile(r"\b(?:preis|rate|frachtpreis|angebot|offerte|quotation|quote)\b", re.I), 3),
-    ("preis_bitte", re.compile(r"\b(?:bitte|please).{0,40}\b(?:preis|rate|angebot|quote)\b", re.I | re.S), 3),
-    ("kosten_frage", re.compile(r"\b(?:was kostet|zu welchem preis|best price|your rate|can you quote)\b", re.I), 4),
-    ("verfuegbarkeit_preis", re.compile(r"\b(?:preis und verfügbarkeit|rate and availability|capacity and price)\b", re.I), 4),
+    ("de_preisanfrage", re.compile(r"\b(?:preisanfrage|preisangebot|frachtanfrage|transportanfrage|offertanfrage)\b", re.I), 45),
+    ("de_bitte_preis", re.compile(r"\b(?:bitte|könnt(?:en)?\s+sie|kannst\s+du).{0,55}\b(?:preis|angebot|offerte|frachtrate)\b", re.I | re.S), 40),
+    ("de_was_kostet", re.compile(r"\b(?:was kostet|zu welchem preis|welchen preis|ihren besten preis|eure beste rate)\b", re.I), 45),
+    ("en_rfq", re.compile(r"\b(?:rfq|request for quotation|request for quote|rate request|freight rate request|transport rate request)\b", re.I), 50),
+    ("en_please_quote", re.compile(r"\b(?:please|kindly).{0,35}\b(?:quote|provide|send).{0,40}\b(?:rate|price|quotation|offer)?\b", re.I | re.S), 45),
+    ("en_can_you_quote", re.compile(r"\b(?:can|could|would)\s+you.{0,40}\b(?:quote|offer|provide).{0,40}\b(?:rate|price|quotation|transport)?\b", re.I | re.S), 45),
+    ("en_best_rate", re.compile(r"\b(?:best rate|best price|your rate|freight rate|transport rate|rate and availability|price and availability)\b", re.I), 35),
+    ("generic_quote", re.compile(r"\b(?:quotation|quote|offerte|frachtrate)\b", re.I), 22),
+    ("generic_price", re.compile(r"\b(?:preis|price|rate|angebot|offer)\b", re.I), 12),
 ]
 
 BOOKING_RULES: list[tuple[str, re.Pattern[str], int]] = [
-    ("beauftragung", re.compile(r"\b(?:hiermit beauftragen|wir beauftragen|transportauftrag|booking confirmation|we hereby book)\b", re.I), 4),
-    ("fix_buchen", re.compile(r"\b(?:bitte fest buchen|please book|auftrag ist fix|transport is confirmed)\b", re.I), 4),
+    ("de_beauftragung", re.compile(r"\b(?:hiermit beauftragen|wir beauftragen|transportauftrag|bitte fest buchen|auftrag ist fix)\b", re.I), 50),
+    ("en_booking", re.compile(r"\b(?:we hereby book|please book|booking confirmation|transport is confirmed|shipment is confirmed|please proceed)\b", re.I), 50),
 ]
 
 STATUS_RULES: list[tuple[str, re.Pattern[str], int]] = [
-    ("status", re.compile(r"\b(?:status|eta|verspätung|delay|abgeladen|beladen|delivered|loaded|entladen)\b", re.I), 2),
-    ("status_frage", re.compile(r"\b(?:wo ist der lkw|aktueller stand|current status|please advise eta)\b", re.I), 4),
+    ("de_statusfrage", re.compile(r"\b(?:wo ist der lkw|aktueller stand|bitte um status|bitte eta|wann kommt der lkw)\b", re.I), 50),
+    ("en_statusfrage", re.compile(r"\b(?:current status|please advise eta|where is the truck|please provide an update|shipment status)\b", re.I), 50),
+    ("statusbegriffe", re.compile(r"\b(?:status|eta|verspätung|delay|abgeladen|beladen|delivered|loaded|entladen|unloaded)\b", re.I), 18),
 ]
 
-ATTACHMENT_HINT = re.compile(r"\b(?:siehe anhang|see attachment|details im anhang|attached request|anbei die anfrage)\b", re.I)
-ROUTE_HINT = re.compile(r"\b(?:von|abholung|pickup|loading|ladeort)\b.{0,100}\b(?:nach|zustellung|delivery|unloading|entladeort)\b", re.I | re.S)
+NEGATIVE_PRICE_RULES: list[tuple[str, re.Pattern[str], int]] = [
+    ("bestehender_preis", re.compile(r"\b(?:vereinbarte[rn]? preis|preis bleibt unverändert|agreed price|price remains unchanged|rate remains unchanged)\b", re.I), -35),
+    ("rechnung_preis", re.compile(r"\b(?:rechnung|invoice|credit note|gutschrift).{0,50}\b(?:preis|price|rate)\b", re.I | re.S), -25),
+]
+
+ATTACHMENT_HINT = re.compile(r"\b(?:siehe anhang|see attachment|details im anhang|attached request|attached rfq|anbei die anfrage|please find attached)\b", re.I)
+ROUTE_HINT = re.compile(r"\b(?:von|abholung|pickup|loading|collection|ladeort)\b.{0,140}\b(?:nach|zustellung|delivery|unloading|destination|entladeort)\b", re.I | re.S)
+REQUEST_TONE = re.compile(r"\b(?:bitte|please|kindly|könnt(?:en)?\s+sie|can you|could you|would you)\b", re.I)
+TRANSPORT_TERMS = re.compile(r"\b(?:transport|shipment|load|ladung|truck|lkw|trailer|sattelzug|pallets?|paletten|weight|gewicht|pickup|delivery|abholung|zustellung)\b", re.I)
 
 DATE_PATTERN = re.compile(r"\b(\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)\b")
 ISO_DATE_PATTERN = re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
 POSTCODE_CITY_PATTERN = re.compile(r"\b(?:(?P<country>[A-Z]{2})[- ]?)?(?P<postcode>\d{4,5})\s+(?P<city>[A-ZÄÖÜ][A-Za-zÄÖÜäöüß\- ]{2,40})")
-WEIGHT_PATTERN = re.compile(r"\b(\d{1,3}(?:[.,]\d{3})*|\d+(?:[.,]\d+)?)\s*(kg|t|to|tonnen|tons?)\b", re.I)
-PALLET_PATTERN = re.compile(r"\b(\d{1,3})\s*(?:euro[- ]?)?(?:paletten|pallets?|pl)\b", re.I)
-LDM_PATTERN = re.compile(r"\b(\d+(?:[.,]\d+)?)\s*(?:ldm|lademeter)\b", re.I)
+WEIGHT_PATTERN = re.compile(r"\b(\d{1,3}(?:[.,]\d{3})*|\d+(?:[.,]\d+)?)\s*(kg|kgs|t|to|tonnen|tons?|tonnes?)\b", re.I)
+PALLET_PATTERN = re.compile(r"\b(\d{1,3})\s*(?:euro[- ]?)?(?:paletten|pallets?|plt|plts|pl)\b", re.I)
+LDM_PATTERN = re.compile(r"\b(\d+(?:[.,]\d+)?)\s*(?:ldm|lademeter|loading meters?)\b", re.I)
 TEMPERATURE_PATTERN = re.compile(r"(?<!\d)(-?\d{1,2}(?:[.,]\d+)?)\s*(?:°\s*)?c\b", re.I)
 
 LABEL_PATTERNS: dict[str, re.Pattern[str]] = {
-    "pickup_location": re.compile(r"(?im)^\s*(?:abholung|ladeort|pickup|loading)\s*[:\-]\s*(.+)$"),
-    "delivery_location": re.compile(r"(?im)^\s*(?:zustellung|entladeort|delivery|unloading)\s*[:\-]\s*(.+)$"),
-    "pickup_date": re.compile(r"(?im)^\s*(?:abholdatum|ladedatum|pickup date|loading date)\s*[:\-]\s*(.+)$"),
-    "delivery_date": re.compile(r"(?im)^\s*(?:zustelldatum|entladedatum|delivery date|unloading date)\s*[:\-]\s*(.+)$"),
-    "goods": re.compile(r"(?im)^\s*(?:ware|goods|commodity)\s*[:\-]\s*(.+)$"),
-    "vehicle_type": re.compile(r"(?im)^\s*(?:fahrzeug|vehicle|equipment|truck)\s*[:\-]\s*(.+)$"),
+    "pickup_location": re.compile(r"(?im)^\s*(?:abholung|ladeort|pickup|pick-up|loading|collection|origin)\s*[:\-]\s*(.+)$"),
+    "delivery_location": re.compile(r"(?im)^\s*(?:zustellung|entladeort|delivery|unloading|destination|drop-off)\s*[:\-]\s*(.+)$"),
+    "pickup_date": re.compile(r"(?im)^\s*(?:abholdatum|ladedatum|pickup date|pick-up date|loading date|collection date)\s*[:\-]\s*(.+)$"),
+    "delivery_date": re.compile(r"(?im)^\s*(?:zustelldatum|entladedatum|delivery date|unloading date|drop-off date)\s*[:\-]\s*(.+)$"),
+    "goods": re.compile(r"(?im)^\s*(?:ware|goods|commodity|cargo|product)\s*[:\-]\s*(.+)$"),
+    "vehicle_type": re.compile(r"(?im)^\s*(?:fahrzeug|vehicle|equipment|truck|trailer type)\s*[:\-]\s*(.+)$"),
 }
 
 
@@ -51,13 +64,13 @@ def _score(text: str, rules: list[tuple[str, re.Pattern[str], int]]) -> tuple[in
     for name, pattern, points in rules:
         if pattern.search(text):
             total += points
-            matches.append(f"{name} (+{points})")
+            sign = "+" if points >= 0 else ""
+            matches.append(f"{name} ({sign}{points})")
     return total, matches
 
 
 def _clean_location(value: str) -> str:
     value = re.split(r"\s{2,}|;|\|", value.strip())[0]
-    # Common format: "10.08.2026 in 80331 München". Keep only the location part.
     value = re.sub(r"^\s*(?:20\d{2}-\d{2}-\d{2}|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)\s+(?:in|at)\s+", "", value, flags=re.I)
     value = re.sub(r"\b(?:am|on)\s+\d{1,2}[./-]\d{1,2}.*$", "", value, flags=re.I).strip(" ,.-")
     return value[:100]
@@ -83,15 +96,10 @@ def _label_value(text: str, key: str) -> str | None:
 def _extract_locations(text: str) -> tuple[str | None, str | None]:
     pickup = _label_value(text, "pickup_location")
     delivery = _label_value(text, "delivery_location")
-
     if pickup and delivery:
         return _clean_location(pickup), _clean_location(delivery)
 
-    route = re.search(
-        r"\b(?:von|from)\s+(.{2,80}?)\s+(?:nach|to)\s+(.{2,80}?)(?:[\n,.;]|$)",
-        text,
-        re.I,
-    )
+    route = re.search(r"\b(?:von|from)\s+(.{2,80}?)\s+(?:nach|to)\s+(.{2,80}?)(?:[\n,.;]|$)", text, re.I)
     if route:
         return pickup or _clean_location(route.group(1)), delivery or _clean_location(route.group(2))
 
@@ -106,7 +114,6 @@ def _extract_dates(text: str) -> tuple[str | None, str | None]:
     delivery = _label_value(text, "delivery_date")
     pickup_date = _normalize_date(pickup) if pickup else None
     delivery_date = _normalize_date(delivery) if delivery else None
-
     all_dates = ISO_DATE_PATTERN.findall(text) + DATE_PATTERN.findall(text)
     normalized: list[str] = []
     for value in all_dates:
@@ -121,19 +128,28 @@ def _extract_dates(text: str) -> tuple[str | None, str | None]:
 
 
 def _number(value: str) -> float:
-    value = value.replace(".", "").replace(",", ".")
+    value = value.strip()
+    # 18,000 / 18.000 are treated as thousands; 18,5 / 18.5 as decimals.
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", value):
+        return float(re.sub(r"[.,]", "", value))
+    if "," in value and "." in value:
+        if value.rfind(",") > value.rfind("."):
+            value = value.replace(".", "").replace(",", ".")
+        else:
+            value = value.replace(",", "")
+    else:
+        value = value.replace(",", ".")
     return float(value)
 
 
 def extract_shipment(text: str) -> dict[str, Any]:
     pickup_location, delivery_location = _extract_locations(text)
     pickup_date, delivery_date = _extract_dates(text)
-
     weight_kg: float | None = None
     weight_match = WEIGHT_PATTERN.search(text)
     if weight_match:
         weight_kg = _number(weight_match.group(1))
-        if weight_match.group(2).lower() in {"t", "to", "tonnen", "ton", "tons"}:
+        if weight_match.group(2).lower() in {"t", "to", "tonnen", "ton", "tons", "tonne", "tonnes"}:
             weight_kg *= 1000
 
     pallets_match = PALLET_PATTERN.search(text)
@@ -141,9 +157,8 @@ def extract_shipment(text: str) -> dict[str, Any]:
     temperatures = [_number(item) for item in TEMPERATURE_PATTERN.findall(text)]
     goods = _label_value(text, "goods")
     vehicle = _label_value(text, "vehicle_type")
-
     adr: bool | None = None
-    if re.search(r"\b(?:kein adr|non[- ]?adr|not adr)\b", text, re.I):
+    if re.search(r"\b(?:kein adr|non[- ]?adr|not adr|no adr)\b", text, re.I):
         adr = False
     elif re.search(r"\badr\b", text, re.I):
         adr = True
@@ -167,36 +182,54 @@ def extract_shipment(text: str) -> dict[str, Any]:
 def classify(email: EmailData, required_fields: list[str], thresholds: dict[str, int]) -> ParseResult:
     text = f"{email.subject}\n{email.current_body}"[:30000]
     price_score, price_matches = _score(text, PRICE_RULES)
+    negative_score, negative_matches = _score(text, NEGATIVE_PRICE_RULES)
+    price_score += negative_score
     booking_score, booking_matches = _score(text, BOOKING_RULES)
     status_score, status_matches = _score(text, STATUS_RULES)
 
-    if ROUTE_HINT.search(text):
-        price_score += 1
-        price_matches.append("transportrelation (+1)")
+    shipment = extract_shipment(text)
+    transport_facts = 0
+    if shipment.get("pickup_location") and shipment.get("delivery_location"):
+        transport_facts += 18
+        price_matches.append("transportrelation (+18)")
+    elif ROUTE_HINT.search(text):
+        transport_facts += 10
+        price_matches.append("transportrelation_hinweis (+10)")
+    if shipment.get("pickup_date"):
+        transport_facts += 6
+        price_matches.append("abholdatum (+6)")
+    if shipment.get("weight_kg") is not None:
+        transport_facts += 6
+        price_matches.append("gewicht (+6)")
+    if shipment.get("pallets") is not None:
+        transport_facts += 6
+        price_matches.append("paletten (+6)")
+    if REQUEST_TONE.search(text) and TRANSPORT_TERMS.search(text):
+        transport_facts += 8
+        price_matches.append("anfrageform_transport (+8)")
+    price_score += transport_facts
 
-    scores = {"PRICE_REQUEST": price_score, "BOOKING": booking_score, "STATUS_UPDATE": status_score}
+    scores = {"PRICE_REQUEST": max(0, price_score), "BOOKING": booking_score, "STATUS_UPDATE": status_score}
     ordered = sorted(scores.items(), key=lambda item: item[1], reverse=True)
     best_category, best_score = ordered[0]
     second_score = ordered[1][1]
-    unclear_margin = int(thresholds.get("unclear_margin", 1))
-
+    unclear_margin = int(thresholds.get("unclear_margin", 12))
     minimum = {
-        "PRICE_REQUEST": int(thresholds.get("price_request", 4)),
-        "BOOKING": int(thresholds.get("booking", 4)),
-        "STATUS_UPDATE": int(thresholds.get("status_update", 4)),
+        "PRICE_REQUEST": int(thresholds.get("price_request", 55)),
+        "BOOKING": int(thresholds.get("booking", 45)),
+        "STATUS_UPDATE": int(thresholds.get("status_update", 45)),
     }
 
     if best_score < minimum[best_category]:
-        category = "OTHER" if best_score == 0 else "UNCLEAR"
+        category = "OTHER" if best_score < int(thresholds.get("review_minimum", 30)) else "UNCLEAR"
     elif best_score - second_score <= unclear_margin and second_score > 0:
         category = "UNCLEAR"
     else:
         category = best_category
 
-    matched_rules = [*price_matches, *booking_matches, *status_matches]
+    matched_rules = [*price_matches, *negative_matches, *booking_matches, *status_matches]
     attachment_relevant = bool(email.attachment_names and ATTACHMENT_HINT.search(text))
-    shipment = extract_shipment(text) if category in {"PRICE_REQUEST", "UNCLEAR"} else {}
-    shipments = [shipment] if shipment and any(value is not None for value in shipment.values()) else []
+    shipments = [shipment] if category in {"PRICE_REQUEST", "UNCLEAR"} and any(value is not None for value in shipment.values()) else []
 
     missing_fields: list[str] = []
     if category == "PRICE_REQUEST":
@@ -209,7 +242,7 @@ def classify(email: EmailData, required_fields: list[str], thresholds: dict[str,
 
     ambiguities: list[str] = []
     if category == "UNCLEAR":
-        ambiguities.append("Regeln liefern kein eindeutiges Klassifikationsergebnis.")
+        ambiguities.append("Das Regelwerk erkennt Hinweise, aber keine eindeutige Kategorie.")
     if attachment_relevant:
         ambiguities.append("Wesentliche Angaben könnten ausschließlich im Anhang stehen.")
 
@@ -220,13 +253,12 @@ def classify(email: EmailData, required_fields: list[str], thresholds: dict[str,
     else:
         route = "not_request"
 
-    if best_score == 0:
-        confidence = 0.90
+    if category == "OTHER" and best_score == 0:
+        confidence = 0.92
+    elif category == "UNCLEAR":
+        confidence = min(0.69, 0.45 + best_score / 250)
     else:
-        separation = max(0, best_score - second_score)
-        confidence = min(0.98, 0.55 + 0.06 * best_score + 0.04 * separation)
-        if category == "UNCLEAR":
-            confidence = min(confidence, 0.65)
+        confidence = min(0.99, 0.58 + best_score / 180 + max(0, best_score - second_score) / 500)
 
     return ParseResult(
         category=category,
@@ -238,4 +270,5 @@ def classify(email: EmailData, required_fields: list[str], thresholds: dict[str,
         attachment_relevant=attachment_relevant,
         matched_rules=matched_rules,
         scores=scores,
+        engine="rule-based-v2.1-de-en",
     )

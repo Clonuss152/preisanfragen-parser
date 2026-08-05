@@ -32,7 +32,7 @@ class ParseResult:
     attachment_relevant: bool
     matched_rules: list[str]
     scores: dict[str, int]
-    engine: str = "rule-based-v2"
+    engine: str = "rule-based-v2.1-de-en"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

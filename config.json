@@ -7,9 +7,10 @@
   "customers_file": "customers.csv",
   "max_body_chars": 30000,
   "classification_thresholds": {
-    "price_request": 4,
-    "booking": 4,
-    "status_update": 4,
-    "unclear_margin": 1
+    "price_request": 55,
+    "booking": 45,
+    "status_update": 45,
+    "review_minimum": 30,
+    "unclear_margin": 12
   }
 }

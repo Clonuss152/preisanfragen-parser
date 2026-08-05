@@ -54,8 +54,8 @@ def build_results_zip(records: list[dict[str, Any]]) -> bytes:
     return buffer.getvalue()
 
 
-st.set_page_config(page_title="Preisanfragen-Parser 2.0", page_icon="✉️", layout="wide")
-st.title("Preisanfragen-Parser 2.0")
+st.set_page_config(page_title="Preisanfragen-Parser 2.1", page_icon="✉️", layout="wide")
+st.title("Preisanfragen-Parser 2.1")
 st.caption("Rein regelbasierter Prototyp – keine API, keine Tokenkosten, keine externe KI-Verarbeitung")
 
 config = load_config()
@@ -63,7 +63,7 @@ config = load_config()
 with st.sidebar:
     st.header("Konfiguration")
     st.success("Kostenfreier Offline-Modus")
-    st.write("Analyse-Engine: `rule-based-v2`")
+    st.write("Analyse-Engine: `rule-based-v2.1-de-en`")
     st.write("Pflichtfelder:")
     for field in config.get("required_shipment_fields", []):
         st.code(field, language=None)
@@ -89,7 +89,7 @@ if customer_upload is not None:
 else:
     customers = load_customers(PROJECT_ROOT / config["customers_file"])
 
-with st.expander("Was kann Version 2.0?", expanded=False):
+with st.expander("Was kann Version 2.1?", expanded=False):
     st.markdown(
         """
 - `.eml`- und `.txt`-Dateien einlesen
@@ -180,38 +180,112 @@ if analyse_clicked:
         )
 
         st.subheader("Detailergebnisse")
+        category_labels = {
+            "PRICE_REQUEST": "Preisanfrage",
+            "BOOKING": "Buchung / Beauftragung",
+            "STATUS_UPDATE": "Statusmeldung",
+            "OTHER": "Keine Preisanfrage",
+            "UNCLEAR": "Manuelle Prüfung",
+        }
+        route_labels = {
+            "complete": "Vollständig",
+            "incomplete": "Unvollständig",
+            "not_request": "Keine Preisanfrage",
+            "review": "Manuelle Prüfung",
+        }
+        field_labels = {
+            "pickup_location": "Abholort",
+            "pickup_date": "Abholdatum",
+            "delivery_location": "Zustellort",
+            "delivery_date": "Zustelldatum",
+            "goods": "Ware",
+            "pallets": "Paletten",
+            "weight_kg": "Gewicht",
+            "loading_meters": "Lademeter",
+            "vehicle_type": "Fahrzeug",
+            "temperature_min_c": "Temperatur min.",
+            "temperature_max_c": "Temperatur max.",
+            "adr": "ADR",
+        }
+
+        def display_value(key: str, value: Any) -> str:
+            if value is None or value == "":
+                return "–"
+            if key == "weight_kg":
+                return f"{float(value):,.0f} kg".replace(",", ".")
+            if key == "loading_meters":
+                return f"{value} Ldm"
+            if key in {"temperature_min_c", "temperature_max_c"}:
+                return f"{value} °C"
+            if key == "adr":
+                return "Ja" if value else "Nein"
+            if key in {"pickup_date", "delivery_date"}:
+                try:
+                    return datetime.fromisoformat(str(value)).strftime("%d.%m.%Y")
+                except ValueError:
+                    return str(value)
+            return str(value)
+
         for record in records:
             result = record["result"]
             email = record["email"]
-            with st.expander(f"{record['filename']} – {result['category']} / {result['route']}"):
+            title = f"{record['filename']} – {category_labels.get(result['category'], result['category'])} / {route_labels.get(result['route'], result['route'])}"
+            with st.expander(title, expanded=True):
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Kategorie", result["category"])
-                c2.metric("Routing", result["route"])
-                c3.metric("Konfidenz", result["confidence"])
+                c1.metric("Kategorie", category_labels.get(result["category"], result["category"]))
+                c2.metric("Status", route_labels.get(result["route"], result["route"]))
+                c3.metric("Konfidenz", f"{result['confidence'] * 100:.0f} %")
                 c4.metric("Kosten", "0,00 €")
 
-                st.markdown("**Erkannter Auftraggeber**")
-                st.write(email.get("customer_company") or "Nicht über Kundenliste erkannt")
+                st.markdown("### E-Mail")
+                mail_col1, mail_col2 = st.columns(2)
+                mail_col1.write(f"**Auftraggeber:** {email.get('customer_company') or 'Nicht erkannt'}")
+                mail_col1.write(f"**Absender:** {email.get('sender_email') or '–'}")
+                mail_col2.write(f"**Betreff:** {email.get('subject') or '–'}")
+                mail_col2.write(f"**Anhänge:** {', '.join(email.get('attachment_names', [])) or 'Keine'}")
 
-                st.markdown("**Bereinigter E-Mail-Text**")
-                st.code(email.get("current_body") or "", language=None)
+                if result["missing_fields"]:
+                    readable_missing = [field_labels.get(item, item) for item in result["missing_fields"]]
+                    st.error("Fehlende Pflichtfelder: " + ", ".join(readable_missing))
+                elif result["category"] == "PRICE_REQUEST":
+                    st.success("Alle definierten Pflichtfelder sind vorhanden.")
 
-                if email.get("quoted_history"):
-                    with st.expander("Abgetrennter Mailverlauf"):
-                        st.code(email["quoted_history"], language=None)
-
-                st.markdown("**Extrahierte Transportdaten**")
+                st.markdown("### Transportdaten")
                 if result["shipments"]:
-                    st.json(result["shipments"])
+                    for shipment_index, shipment in enumerate(result["shipments"], start=1):
+                        st.markdown(f"**Transport {shipment_index}**")
+                        left, right = st.columns(2)
+                        left.markdown("**Abholung**")
+                        left.write(display_value("pickup_location", shipment.get("pickup_location")))
+                        left.write(display_value("pickup_date", shipment.get("pickup_date")))
+                        right.markdown("**Zustellung**")
+                        right.write(display_value("delivery_location", shipment.get("delivery_location")))
+                        right.write(display_value("delivery_date", shipment.get("delivery_date")))
+
+                        details = []
+                        for key in ["goods", "pallets", "weight_kg", "loading_meters", "vehicle_type", "temperature_min_c", "temperature_max_c", "adr"]:
+                            details.append({"Feld": field_labels[key], "Wert": display_value(key, shipment.get(key))})
+                        st.dataframe(details, use_container_width=True, hide_index=True)
                 else:
                     st.info("Keine Transportdaten extrahiert.")
 
-                st.markdown("**Ausgelöste Regeln**")
-                st.write(result["matched_rules"] or ["Keine Regel ausgelöst"])
-                st.write("Punktestände:", result["scores"])
+                with st.expander("Bereinigten E-Mail-Text anzeigen"):
+                    st.code(email.get("current_body") or "", language=None)
+                if email.get("quoted_history"):
+                    with st.expander("Abgetrennten Mailverlauf anzeigen"):
+                        st.code(email["quoted_history"], language=None)
+
+                with st.expander("Warum wurde die Mail so bewertet?"):
+                    st.write("**Ausgelöste Regeln:**")
+                    st.write(result["matched_rules"] or ["Keine Regel ausgelöst"])
+                    st.write("**Punktestände:**", result["scores"])
+                    st.caption(f"Engine: {result.get('engine', 'rule-based')}")
 
                 if result["ambiguities"]:
                     st.warning(" | ".join(result["ambiguities"]))
+
+                with st.expander("Technische Details / JSON"):
+                    st.json(record)
 
                 st.download_button(
                     "JSON herunterladen",
