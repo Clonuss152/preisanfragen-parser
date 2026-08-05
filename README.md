@@ -1,8 +1,8 @@
-# Preisanfragen-Parser 2.1
+# Preisanfragen-Parser 2.2
 
 Kostenloser, regelbasierter Streamlit-Prototyp ohne API und ohne externe KI-Verarbeitung.
 
-## Neuerungen in 2.1
+## Neuerungen in 2.2
 
 - deutsche und englische Preisanfragen
 - typische Formulierungen wie `RFQ`, `request for quotation`, `please quote`, `best rate`

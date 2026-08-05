@@ -54,8 +54,8 @@ def build_results_zip(records: list[dict[str, Any]]) -> bytes:
     return buffer.getvalue()
 
 
-st.set_page_config(page_title="Preisanfragen-Parser 2.1", page_icon="✉️", layout="wide")
-st.title("Preisanfragen-Parser 2.1")
+st.set_page_config(page_title="Preisanfragen-Parser 2.2", page_icon="✉️", layout="wide")
+st.title("Preisanfragen-Parser 2.2")
 st.caption("Rein regelbasierter Prototyp – keine API, keine Tokenkosten, keine externe KI-Verarbeitung")
 
 config = load_config()
@@ -269,22 +269,32 @@ if analyse_clicked:
                 else:
                     st.info("Keine Transportdaten extrahiert.")
 
-                with st.expander("Bereinigten E-Mail-Text anzeigen"):
-                    st.code(email.get("current_body") or "", language=None)
+                st.markdown("### Prüfansichten")
+                tab_labels = ["Bereinigter E-Mail-Text", "Bewertung", "Technische Details / JSON"]
                 if email.get("quoted_history"):
-                    with st.expander("Abgetrennten Mailverlauf anzeigen"):
-                        st.code(email["quoted_history"], language=None)
+                    tab_labels.insert(1, "Abgetrennter Mailverlauf")
+                tabs = st.tabs(tab_labels)
 
-                with st.expander("Warum wurde die Mail so bewertet?"):
+                tab_index = 0
+                with tabs[tab_index]:
+                    st.code(email.get("current_body") or "", language=None)
+                tab_index += 1
+
+                if email.get("quoted_history"):
+                    with tabs[tab_index]:
+                        st.code(email["quoted_history"], language=None)
+                    tab_index += 1
+
+                with tabs[tab_index]:
                     st.write("**Ausgelöste Regeln:**")
                     st.write(result["matched_rules"] or ["Keine Regel ausgelöst"])
                     st.write("**Punktestände:**", result["scores"])
                     st.caption(f"Engine: {result.get('engine', 'rule-based')}")
+                    if result["ambiguities"]:
+                        st.warning(" | ".join(result["ambiguities"]))
+                tab_index += 1
 
-                if result["ambiguities"]:
-                    st.warning(" | ".join(result["ambiguities"]))
-
-                with st.expander("Technische Details / JSON"):
+                with tabs[tab_index]:
                     st.json(record)
 
                 st.download_button(
